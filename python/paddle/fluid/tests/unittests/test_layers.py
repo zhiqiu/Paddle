@@ -2128,6 +2128,20 @@ class TestBook(LayerTest):
                 nms_eta=1.)
             return (nmsed_outs)
 
+    def test_auto_increment(self):
+        with self.static_graph():
+            t = layers.data(name='input', shape=[1], dtype='float32')
+            ret = layers.auto_increment(t)
+            static_ret = self.get_static_graph_result(
+                feed={'input': np.ones(
+                    [1], dtype='float32')}, fetch_list=[ret])[0]
+
+        with self.dynamic_graph():
+            t = np.ones([1], dtype='float32')
+            dy_ret = layers.auto_increment(base.to_variable(t))
+
+        self.assertTrue(np.allclose(static_ret, 2))
+
 
 if __name__ == '__main__':
     unittest.main()
