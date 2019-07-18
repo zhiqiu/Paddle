@@ -207,6 +207,7 @@ __all__ = [
     'deformable_conv',
     'unfold',
     'deformable_roi_pooling',
+    'auto_increment',
 ]
 
 kIgnoreIndex = -100
@@ -370,7 +371,7 @@ def embedding(input,
     constructor.
 
     Args:
-        input(Variable): Input is a Tensor<int64> Variable, which contains the IDs information.
+        input(Variable): The tensor variable containing the IDs.
         size(tuple|list): The shape of the look up table parameter. It should
             have two elements which indicate the size of the dictionary of
             embeddings and the size of each embedding vector respectively.
@@ -12516,3 +12517,30 @@ def deformable_roi_pooling(input,
             "trans_std": trans_std
         })
     return output
+
+
+def auto_increment(input):
+    """
+    Increment an variable by 1 automatically.
+
+    Args:
+        input(Variable): The input variable.
+
+    Returns:
+        Variable: The output variable.
+
+    Examples:
+        .. code-block:: python
+
+           import paddle.fluid as fluid
+           global_step = fluid.layers.auto_increment(input)
+    """
+    helper = LayerHelper('auto_increment')
+    out = helper.create_variable_for_type_inference(dtype=input.dtype)
+    helper.append_op(
+        type='auto_increment',
+        inputs={'X': input},
+        outputs={'Out': out},
+        attrs={})
+
+    return out
