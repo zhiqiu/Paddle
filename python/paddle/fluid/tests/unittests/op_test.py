@@ -403,23 +403,26 @@ class OpTest(unittest.TestCase):
                         np.array(expect_outs[i]), np.array(actual_outs[i])))
 
     def check_inplace_grad_output_with_place(self, place, no_check_set=None):
-        #forward_outs, fetch_list = self._calc_output(place, no_check_set=no_check_set, enable_inplace=False)
         forward_outs, fetch_list = self._calc_output(
-            place, no_check_set=None, enable_inplace=False)
+            place, no_check_set=no_check_set, enable_inplace=False)
+        #forward_outs, fetch_list = self._calc_output(
+        #    place, no_check_set=None, enable_inplace=False)
         program = Program()
         block = program.global_block()
         op = self._append_ops(block)
-        #program = Program()
-        #block = program.global_block()
         inputs = self._get_inputs(block)
         outputs = self._get_outputs(block)
         feed_map = self.feed_var(inputs, place)
+        exe = fluid.Executor(place)
+        outs1 = exe.run(program,
+                        feed=feed_map,
+                        fetch_list=['Out'],
+                        return_numpy=False)
 
-        print(str(place))
+        print(outs1[0])
+
         grad_op_desc_list, op_grad_to_var = core.get_grad_op_desc(op.desc,
                                                                   set(), [])
-        for op_desc in grad_op_desc_list:
-            print(op_desc)
         grad_op_desc = grad_op_desc_list[0]
         new_op_desc = block.desc.append_op()
         new_op_desc.copy_from(grad_op_desc)
@@ -427,44 +430,22 @@ class OpTest(unittest.TestCase):
         for arg in grad_op_desc.input_arg_names(
         ) + grad_op_desc.output_arg_names():
             block.create_var(name=arg, dtype='float32')
-        #grad_op_desc.infer_var_type(block.desc)
-        #grad_op_desc.infer_shape(block.desc)
-        #print(block) 
-        #feed_map={}
-        #print(op_grad_to_var)
+
         for arg in grad_op_desc.input_arg_names():
-            #grad_var = block.desc.find_var(arg.encode("ascii"))
-            #grad_var.set_dtype(core.VarDesc.VarType.FP32)
             if arg in feed_map.keys():
                 continue
             forward_var = op_grad_to_var[arg]
             for i, var in enumerate(fetch_list):
                 if var.name == forward_var:
-                    #print(forward_outs[i])
                     feed_map[arg] = forward_outs[i]
 
-        exe = fluid.Executor(place)
-
-        for k, v in feed_map.items():
-            print(k, v)
-        for out in forward_outs:
-            print(out)
-        print(grad_op_desc.output_arg_names())
-        build_strategy = fluid.BuildStrategy()
-        build_strategy.enable_inplace = False
-        build_strategy.memory_optimize = False
-
-        compiled_program = fluid.CompiledProgram(program).with_data_parallel(
-            build_strategy=build_strategy, places=place)
-        outs1 = exe.run(compiled_program,
+        outs2 = exe.run(program,
                         feed=feed_map,
-                        fetch_list=grad_op_desc.output_arg_names())
+                        fetch_list=grad_op_desc.output_arg_names(),
+                        return_numpy=False)
+        print(outs1[0])
 
-        for k, v in feed_map.items():
-            print(k, v)
-        for out in forward_outs:
-            print(out)
-
+        return
         build_strategy.enable_inplace = False
         build_strategy.memory_optimize = False
         compiled_program = fluid.CompiledProgram(program).with_data_parallel(
