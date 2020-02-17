@@ -1136,6 +1136,8 @@ All parameter, weight, gradient are variables in Paddle.
     return new ProgramDesc(pruned_desc);
   });
   m.def("prune_backward", [](const framework::ProgramDesc &program) {
+    // pruned_origin_block_map is used to
+    //! Python str. If you want a str object, you should cast them in Python.
     return PruneBackward(program);
   });
   m.def("empty_var_name",

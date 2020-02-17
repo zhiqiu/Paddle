@@ -17,9 +17,11 @@ limitations under the License. */
 #include <glog/logging.h>
 
 #include <algorithm>
+#include <map>
 #include <memory>
 #include <set>
 #include <string>
+#include <tuple>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
@@ -349,8 +351,8 @@ void PruneBackwardImpl(proto::ProgramDesc* input, proto::ProgramDesc* output,
   }
 }
 
-std::unique_ptr<framework::ProgramDesc> PruneBackward(
-    const framework::ProgramDesc& origin) {
+std::tuple<std::unique_ptr<framework::ProgramDesc>, std::map<int, int>>
+PruneBackward(const framework::ProgramDesc& origin) {
   // Copy original ProgramDesc, origin can't be change
   framework::ProgramDesc origin_clone(origin);
 
@@ -381,11 +383,13 @@ std::unique_ptr<framework::ProgramDesc> PruneBackward(
   // Step 2. Prune backward
   proto::ProgramDesc pruned_desc;
   pruned_desc.clear_blocks();
-  PruneBackwardImpl(origin_clone.Proto(), &pruned_desc, 0, -1);
+  auto pruned_orogin_block_map =
+      PruneBackwardImpl(origin_clone.Proto(), &pruned_desc, 0, -1);
 
   // Step 3. Contruct new framework::ProgramDesc
-  return std::unique_ptr<framework::ProgramDesc>(
+  auto pruned = std::unique_ptr<framework::ProgramDesc>(
       new framework::ProgramDesc(pruned_desc));
+  return std::make_tuple<pruned, pruned_orogin_block_map>;
 }
 
 }  // namespace framework
