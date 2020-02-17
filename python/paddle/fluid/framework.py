@@ -4450,9 +4450,6 @@ class Program(object):
             raise TypeError("_copy_param_info_from should be invoked with "
                             "Program")
 
-        if len(self.blocks) != len(other.blocks):
-            raise ValueError("_copy_param_info_from should be invoked with two "
-                             "program, with represent the same topology")
         self.global_block()._copy_param_info_from(other.global_block())
 
     def _copy_dist_param_info_from(self, other):
@@ -4492,13 +4489,12 @@ class Program(object):
             raise TypeError("_copy_data_info_from should be invoked with "
                             "Program")
 
-        if len(self.blocks) != len(other.blocks):
-            raise ValueError("_copy_data_info_from should be invoked with two "
-                             "program, with represent the same topology")
-
         # NOTE(zhiqiu): All vars in cloned program exist in original program.
         # The reverse is not true, due to backward pruning.
         for i, block in enumerate(other.blocks):
+            # TODO(zhiqiu): this support program with condition, but not support minimize in comdition yet.
+            if i >= self.num_blocks:
+                break
             for var in list(block.vars.values()):
                 if not self.blocks[i].has_var(var.name):
                     continue
