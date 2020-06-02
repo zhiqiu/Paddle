@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include <memory>
+#include <type_traits>
 #include <vector>
 #include "gtest/gtest.h"
 #include "paddle/fluid/framework/variable.h"
