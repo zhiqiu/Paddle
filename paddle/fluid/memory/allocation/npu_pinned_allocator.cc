@@ -32,6 +32,7 @@ void NPUPinnedAllocator::ProcessEventsAndFree() {
       npu_events_.erase(it++);
       delete allocation;
       PADDLE_ENFORCE_NPU_SUCCESS(aclrtDestroyEvent(event));
+      VLOG(4) << "aclrtDestroyEvent " << event;
     } else {
       ++it;
     }
@@ -39,6 +40,7 @@ void NPUPinnedAllocator::ProcessEventsAndFree() {
 }
 
 Allocation *NPUPinnedAllocator::AllocateImpl(size_t size) {
+  VLOG(4) << npu_events_.size();
   std::lock_guard<std::mutex> lock(mtx_);
   ProcessEventsAndFree();
   void *ptr;
@@ -62,6 +64,7 @@ void NPUPinnedAllocator::FreeImpl(Allocation *allocation) {
     npu_events_.erase(allocation);
     delete allocation;
     PADDLE_ENFORCE_NPU_SUCCESS(aclrtDestroyEvent(event));
+    VLOG(4) << "aclrtDestroyEvent " << event;
   }
   return;
 }
@@ -78,6 +81,7 @@ void NPUPinnedAllocator::RecordEvent(Allocation *allocation,
   aclrtEvent event = nullptr;
   PADDLE_ENFORCE_NPU_SUCCESS(aclrtCreateEvent(&event));
   PADDLE_ENFORCE_NPU_SUCCESS(aclrtRecordEvent(event, stream));
+  VLOG(4) << "aclrtCreateEvent " << event;
   npu_events_.insert({allocation, event});
 }
 
