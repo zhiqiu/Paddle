@@ -65,6 +65,9 @@ USE_GPU_MEM_STAT;
 namespace paddle {
 namespace platform {
 
+bool g_cuda_memcpy_enable{true};
+std::mutex g_cuda_memcpy_mutex;
+
 void GpuMemoryUsage(size_t *available, size_t *total) {
   size_t actual_available, actual_total;
   RecordedGpuMemGetInfo(available,
@@ -513,11 +516,28 @@ void GpuMemcpyAsync(void *dst,
   phi::backends::gpu::GpuMemcpyAsync(dst, src, count, kind, stream);
 }
 
+// NOTE(zhiqiu): in some context, memcpy is not allowed.
+// For example, in pp parallel, when two nodes both doing sending,
+// if cudaMemcpy is performed at stream 0, it will wait the tasks
+// at all streams to finished. But the corresponding recv of send
+// is not launched, so the nccl hangs.
+// Normally, the main thread doing send/recv does not call cudaMemcpy,
+// between send and recv, but the dataloader thread may call.
 void GpuMemcpySync(void *dst,
                    const void *src,
                    size_t count,
                    gpuMemcpyKind kind) {
-  phi::backends::gpu::GpuMemcpySync(dst, src, count, kind);
+  // hotfix for nccl hang in pipeline-parallel training
+  std::lock_guard<std::mutex> lock(g_cuda_memcpy_mutex);
+  while (1) {
+    if (g_cuda_memcpy_enable) {
+      phi::backends::gpu::GpuMemcpySync(dst, src, count, kind);
+      break;
+    } else {
+      VLOG(4) << "sleep 1ms to avoid doing cudaMemcpy in during send/recv.";
+      std::this_thread::sleep_for(std::chrono::milliseconds(1));
+    }
+  }
 }
 
 void GpuMemcpyPeerAsync(void *dst,

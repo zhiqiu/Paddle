@@ -35,8 +35,6 @@ constexpr int64_t kWaitBlockTImeout = 10;
 namespace paddle {
 namespace distributed {
 
-std::atomic<int> ProcessGroupNCCL::in_send_recv_count(0);
-
 ProcessGroupNCCL::NCCLTask::NCCLTask(const Place& place,
                                      int rank,
                                      CommType comm_type,
@@ -103,13 +101,20 @@ void ProcessGroupNCCL::GroupStart() {
 void ProcessGroupNCCL::GroupEnd() { NCCL_CHECK(phi::dynload::ncclGroupEnd()); }
 
 void ProcessGroupNCCL::SendRecvStart() {
-  in_send_recv_count.fetch_add(1);
-  VLOG(6) << "SendRecvStart, increase count to " << in_send_recv_count;
+  // TOD(zhiqiu): support reentrancy？
+  PADDLE_ENFORCE_EQ(
+      platform::g_cuda_memcpy_enable,
+      true,
+      phi::errors::PreconditionNotMet("Is already doing send/recv now"));
+
+  std::lock_guard<std::mutex> lock(platform::g_cuda_memcpy_mutex);
+  platform::g_cuda_memcpy_enable = false;
+  VLOG(6) << "SendRecvStart, disable cudaMemcpy";
 }
 
 void ProcessGroupNCCL::SendRecvEnd() {
-  in_send_recv_count.fetch_add(1);
-  VLOG(6) << "SendRecvEnd, decrease count to " << in_send_recv_count;
+  platform::g_cuda_memcpy_enable = true;
+  VLOG(6) << "SendRecvEnd, enable cudaMemcpy";
 }
 
 phi::DeviceContext* ProcessGroupNCCL::GetDeviceContext(

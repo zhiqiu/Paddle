@@ -22,6 +22,7 @@
 
 #include "paddle/fluid/distributed/collective/process_group.h"
 #include "paddle/fluid/distributed/collective/process_group_with_stream.h"
+#include "paddle/fluid/platform/device/gpu/gpu_info.h"
 #include "paddle/fluid/platform/device_event.h"
 #include "paddle/phi/backends/gpu/forwards.h"
 #include "paddle/phi/common/place.h"
@@ -261,9 +262,6 @@ class ProcessGroupNCCL final : public ProcessGroupWithStream {
   std::unordered_map<std::string, phi::GPUContext*> place_to_calc_ctx_;
   std::unordered_map<std::string, std::unique_ptr<phi::GPUContext>>
       place_to_comm_ctx_;
-
-  // NOTE(zhiqiu): record the number of paired seed/recv context
-  static std::atomic<int> in_send_recv_count;
 
   // TODO(sunyilun): attrs below will be removed later
   std::mutex mutex_;

@@ -24,6 +24,10 @@ limitations under the License. */
 
 namespace paddle {
 namespace platform {
+
+extern std::mutex g_cuda_memcpy_mutex;
+extern bool g_cuda_memcpy_enable;
+
 //! Get the version of dnn
 int DnnVersion();
 
