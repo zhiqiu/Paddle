@@ -35,6 +35,8 @@ constexpr int64_t kWaitBlockTImeout = 10;
 namespace paddle {
 namespace distributed {
 
+std::atomic<int> ProcessGroupNCCL::in_send_recv_count(0);
+
 ProcessGroupNCCL::NCCLTask::NCCLTask(const Place& place,
                                      int rank,
                                      CommType comm_type,
@@ -99,6 +101,16 @@ void ProcessGroupNCCL::GroupStart() {
 }
 
 void ProcessGroupNCCL::GroupEnd() { NCCL_CHECK(phi::dynload::ncclGroupEnd()); }
+
+void ProcessGroupNCCL::SendRecvStart() {
+  in_send_recv_count.fetch_add(1);
+  VLOG(6) << "SendRecvStart, increase count to " << in_send_recv_count;
+}
+
+void ProcessGroupNCCL::SendRecvEnd() {
+  in_send_recv_count.fetch_add(1);
+  VLOG(6) << "SendRecvEnd, decrease count to " << in_send_recv_count;
+}
 
 phi::DeviceContext* ProcessGroupNCCL::GetDeviceContext(
     const Place& place) const {

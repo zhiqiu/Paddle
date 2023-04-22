@@ -167,6 +167,10 @@ class ProcessGroupNCCL final : public ProcessGroupWithStream {
 
   static void GroupEnd();
 
+  static void SendRecvStart();
+
+  static void SendRecvEnd();
+
   ncclComm_t NCCLComm(const Place& place) const;
 
   // TODO(liyurui): This API will be moved later
@@ -257,6 +261,9 @@ class ProcessGroupNCCL final : public ProcessGroupWithStream {
   std::unordered_map<std::string, phi::GPUContext*> place_to_calc_ctx_;
   std::unordered_map<std::string, std::unique_ptr<phi::GPUContext>>
       place_to_comm_ctx_;
+
+  // NOTE(zhiqiu): record the number of paired seed/recv context
+  static std::atomic<int> in_send_recv_count;
 
   // TODO(sunyilun): attrs below will be removed later
   std::mutex mutex_;

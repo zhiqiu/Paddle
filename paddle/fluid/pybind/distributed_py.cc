@@ -1243,8 +1243,10 @@ void BindDistributed(py::module *m) {
                   py::arg("group_id") = 0,
                   py::call_guard<py::gil_scoped_release>())
       .def_static("group_start", distributed::ProcessGroupNCCL::GroupStart)
-      .def_static("group_end", distributed::ProcessGroupNCCL::GroupEnd);
-
+      .def_static("group_end", distributed::ProcessGroupNCCL::GroupEnd)
+      .def_static("send_recv_start",
+                  distributed::ProcessGroupNCCL::SendRecvStart)
+      .def_static("send_recv_end", distributed::ProcessGroupNCCL::SendRecvEnd);
 #endif
 
 #if defined(PADDLE_WITH_MPI)
