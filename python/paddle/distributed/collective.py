@@ -241,6 +241,13 @@ def new_group(ranks=None, backend=None, timeout=_default_timeout):
         # hang caused by tcp
         paddle.distributed.barrier(group=group)
         if paddle.distributed.get_world_size() > 1:
+            alltoall_tmp = paddle.empty(
+                shape=[group.nranks, group.nranks], dtype="int32"
+            )
+            out = paddle.distributed.alltoall(
+                [alltoall_tmp, alltoall_tmp], [], group=group
+            )
+            paddle.device.cuda.synchronize()
             paddle.distributed.barrier()
         return group
 

@@ -102,18 +102,12 @@ void ProcessGroupNCCL::GroupEnd() { NCCL_CHECK(phi::dynload::ncclGroupEnd()); }
 
 void ProcessGroupNCCL::SendRecvStart() {
   // TOD(zhiqiu): support reentrancy？
-  PADDLE_ENFORCE_EQ(
-      platform::g_cuda_memcpy_enable,
-      true,
-      phi::errors::PreconditionNotMet("Is already doing send/recv now"));
-
-  std::lock_guard<std::mutex> lock(platform::g_cuda_memcpy_mutex);
-  platform::g_cuda_memcpy_enable = false;
+  platform::g_cuda_memcpy_mutex.lock();
   VLOG(6) << "SendRecvStart, disable cudaMemcpy";
 }
 
 void ProcessGroupNCCL::SendRecvEnd() {
-  platform::g_cuda_memcpy_enable = true;
+  platform::g_cuda_memcpy_mutex.unlock();
   VLOG(6) << "SendRecvEnd, enable cudaMemcpy";
 }
 

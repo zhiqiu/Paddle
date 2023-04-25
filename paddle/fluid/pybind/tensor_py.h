@@ -306,6 +306,7 @@ inline std::string TensorDTypeToPyDTypeStr(
 
 template <typename T>
 T TensorGetElement(const phi::DenseTensor &self, size_t offset) {
+  py::gil_scoped_release release;
   PADDLE_ENFORCE_LT(offset,
                     self.numel(),
                     platform::errors::InvalidArgument(
@@ -344,6 +345,7 @@ T TensorGetElement(const phi::DenseTensor &self, size_t offset) {
 
 template <typename T>
 void TensorSetElement(phi::DenseTensor *self, size_t offset, T elem) {
+  py::gil_scoped_release release;
   PADDLE_ENFORCE_LT(offset,
                     self->numel(),
                     platform::errors::InvalidArgument(
@@ -389,6 +391,9 @@ void SetTensorFromPyArrayT(
   }
   self->Resize(phi::make_ddim(dims));
 
+  auto data = array.data();
+  auto nbytes = array.nbytes();
+
   if (paddle::platform::is_cpu_place(place)) {
     if (zero_copy) {
       auto holder = std::make_shared<details::NumpyAllocation<T>>(array);
@@ -396,7 +401,7 @@ void SetTensorFromPyArrayT(
       self->ResetHolderWithType(holder, framework::TransToPhiDataType(type));
     } else {
       auto dst = self->mutable_data<T>(place);
-      std::memcpy(dst, array.data(), array.nbytes());
+      std::memcpy(dst, data, nbytes);
     }
   } else if (paddle::platform::is_xpu_place(place)) {
 #ifdef PADDLE_WITH_XPU
@@ -408,8 +413,8 @@ void SetTensorFromPyArrayT(
     memory::Copy(tmp_place,
                  static_cast<void *>(dst),
                  platform::CPUPlace(),
-                 static_cast<const void *>(array.data()),
-                 array.nbytes());
+                 static_cast<const void *>(data),
+                 nbytes);
 #else
     PADDLE_THROW(platform::errors::PermissionDenied(
         "Cannot use XPUPlace in CPU/GPU version, "
@@ -425,10 +430,10 @@ void SetTensorFromPyArrayT(
       // IPU does not store Tensor data, Tensor will be created on CPU
       if (!self->initialized()) {
         auto dst = self->mutable_data<T>(place);
-        std::memcpy(dst, array.data(), array.nbytes());
+        std::memcpy(dst, data, nbytes);
       } else {
         auto dst = self->mutable_data<T>(self->place());
-        std::memcpy(dst, array.data(), array.nbytes());
+        std::memcpy(dst, data, nbytes);
       }
     }
 #else
@@ -444,8 +449,8 @@ void SetTensorFromPyArrayT(
 
     phi::DeviceManager::GetDeviceWithPlace(tmp_place)->MemoryCopyH2D(
         reinterpret_cast<void *>(dst),
-        const_cast<void *>(reinterpret_cast<const void *>(array.data())),
-        array.nbytes());
+        const_cast<void *>(reinterpret_cast<const void *>(data)),
+        nbytes);
     platform::DeviceContextPool &pool = platform::DeviceContextPool::Instance();
     auto &ctx = *pool.Get(place);
     ctx.Wait();
@@ -460,18 +465,18 @@ void SetTensorFromPyArrayT(
       // NOTE(wangxi): When copying data to the accelerator card,
       // we need set_device(dev_id) first.
       platform::CUDADeviceGuard guard(place.device);
+      py::gil_scoped_release release;
       auto dst = self->mutable_data<T>(place);
 #ifdef PADDLE_WITH_HIP
-      paddle::platform::GpuMemcpySync(
-          dst, array.data(), array.nbytes(), hipMemcpyHostToDevice);
+      paddle::platform::GpuMemcpySync(dst, data, nbytes, hipMemcpyHostToDevice);
 #else
       paddle::platform::GpuMemcpySync(
-          dst, array.data(), array.nbytes(), cudaMemcpyHostToDevice);
+          dst, data, nbytes, cudaMemcpyHostToDevice);
 #endif
 
     } else if (paddle::platform::is_cuda_pinned_place(place)) {
       auto dst = self->mutable_data<T>(place);
-      std::memcpy(dst, array.data(), array.nbytes());
+      std::memcpy(dst, data, nbytes);
     } else {
       PADDLE_THROW(platform::errors::InvalidArgument(
           "Incompatible place type: Tensor.set() supports "
